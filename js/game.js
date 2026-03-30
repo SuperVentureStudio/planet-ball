@@ -22,6 +22,12 @@ export class Game {
 
     this.state = 'playing';
 
+    this.ceilingY = -200;
+    this.ceilingSpeed = 30;
+    this.ceilingSpeedTimer = 0;
+    this.hurryUpTimer = 0;
+    this.depthReached = 0;
+
     this.resize();
     window.addEventListener('resize', () => this.resize());
   }
@@ -93,6 +99,34 @@ export class Game {
     // Camera follows ball
     const targetCameraY = this.ball.y - this.worldHeight * 0.4;
     this.cameraY = Math.max(this.cameraY, targetCameraY);
+
+    // Ceiling chase
+    this.ceilingY += this.ceilingSpeed * dt;
+    this.ceilingSpeedTimer += dt;
+
+    if (this.ceilingSpeedTimer >= 30) {
+      this.ceilingSpeedTimer -= 30;
+      this.ceilingSpeed += 15;
+      this.hurryUpTimer = 2.0;
+    }
+
+    if (this.hurryUpTimer > 0) {
+      this.hurryUpTimer -= dt;
+    }
+
+    // Track max depth
+    const currentDepth = depthToMeters(this.ball.y);
+    this.depthReached = Math.max(this.depthReached, currentDepth);
+
+    // Death: ceiling catches ball
+    if (this.ball.y - this.ball.radius < this.ceilingY) {
+      this.state = 'dead';
+    }
+
+    // Death: ball falls off bottom of screen
+    if (this.ball.y - this.cameraY > this.worldHeight + 100) {
+      this.state = 'dead';
+    }
   }
 
   render() {
@@ -130,6 +164,16 @@ export class Game {
       ctx.fillRect(p.x, py, p.width, 2);
     }
 
+    // Draw ceiling (death zone)
+    const ceilScreenY = this.ceilingY - this.cameraY;
+    if (ceilScreenY > -10) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, this.worldWidth, Math.max(0, ceilScreenY));
+
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(0, ceilScreenY - 2, this.worldWidth, 4);
+    }
+
     // Draw ball
     const screenX = ball.x;
     const screenY = ball.y - cameraY;
@@ -163,5 +207,14 @@ export class Game {
     ctx.fillStyle = '#ffffff88';
     ctx.font = '11px monospace';
     ctx.fillText(layer.name, 10, 38);
+
+    // Hurry up warning
+    if (this.hurryUpTimer > 0) {
+      ctx.fillStyle = `rgba(255, 50, 50, ${Math.min(this.hurryUpTimer, 1)})`;
+      ctx.font = 'bold 28px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('HURRY UP!', this.worldWidth / 2, this.worldHeight / 2 - 40);
+      ctx.textAlign = 'left';
+    }
   }
 }

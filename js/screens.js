@@ -53,7 +53,7 @@ export class Screens {
 
     ctx.fillStyle = '#ffffff99';
     ctx.font = '13px monospace';
-    ctx.fillText('Tilt to move', cx, h * 0.76);
+    ctx.fillText('Tilt or drag to move', cx, h * 0.76);
     ctx.fillText('Tap to drop', cx, h * 0.81);
 
     if (highScore > 0) {

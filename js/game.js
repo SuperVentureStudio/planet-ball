@@ -1,5 +1,6 @@
 import { Ball } from './ball.js';
 import { getGravity, depthToMeters, BOUNCE_VELOCITY } from './physics.js';
+import { Input } from './input.js';
 
 export class Game {
   constructor(canvas) {
@@ -16,6 +17,8 @@ export class Game {
 
     // Ball starts near top
     this.ball = new Ball(this.worldWidth / 2, 50);
+
+    this.input = new Input();
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -48,6 +51,14 @@ export class Game {
   update(dt) {
     const depthM = depthToMeters(this.ball.y);
     const gravity = getGravity(depthM);
+
+    // Apply tilt/keyboard input as horizontal acceleration
+    const horizontal = this.input.getHorizontal();
+    const moveAccel = 1500; // px/s^2
+    this.ball.vx += horizontal * moveAccel * dt;
+
+    // Horizontal friction (air drag)
+    this.ball.vx *= Math.pow(0.95, dt * 60);
 
     this.ball.update(dt, gravity, this.worldWidth);
 

@@ -42,11 +42,21 @@ export class Input {
   }
 
   _listenTilt() {
+    this._tiltCalibrated = false;
+    this._tiltOffset = 0;
+
     window.addEventListener('deviceorientation', (e) => {
       if (e.gamma !== null) {
         this.hasTilt = true;
+
+        if (!this._tiltCalibrated) {
+          this._tiltOffset = e.gamma;
+          this._tiltCalibrated = true;
+        }
+
         const deadZone = 3;
-        let angle = e.gamma;
+        let angle = e.gamma - this._tiltOffset;
+
         if (Math.abs(angle) < deadZone) {
           this.tiltX = 0;
         } else {
@@ -56,6 +66,10 @@ export class Input {
         }
       }
     });
+  }
+
+  recalibrate() {
+    this._tiltCalibrated = false;
   }
 
   _initTouch() {

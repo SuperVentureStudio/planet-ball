@@ -10,6 +10,28 @@ const ctx = canvas.getContext('2d');
 const input = new Input();
 const audio = new GameAudio();
 
+// Warn if landscape
+function checkOrientation() {
+  if (window.innerWidth > window.innerHeight * 1.2) {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    const s = canvas.width / 400;
+    ctx.setTransform(s, 0, 0, s, 0, 0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, 400, canvas.height / s);
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Please rotate to portrait', 200, canvas.height / s / 2);
+    ctx.textAlign = 'left';
+    return true;
+  }
+  return false;
+}
+
+window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
+
 let game = null;
 let state = 'menu'; // 'menu' | 'playing' | 'dead'
 let highScore = parseInt(localStorage.getItem('planetball_highscore') || '0');

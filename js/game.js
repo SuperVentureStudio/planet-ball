@@ -1,12 +1,11 @@
 import { Ball } from './ball.js';
 import { getGravity, depthToMeters, BOUNCE_VELOCITY, findLandingPlatform } from './physics.js';
-import { Input } from './input.js';
 import { PlatformManager } from './platforms.js';
 import { getLayerAtDepth } from './layers.js';
 import { ComboTracker } from './combo.js';
 
 export class Game {
-  constructor(canvas) {
+  constructor(canvas, input) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.lastTime = 0;
@@ -17,7 +16,7 @@ export class Game {
 
     this.cameraY = 0;
     this.ball = new Ball(this.worldWidth / 2, 50);
-    this.input = new Input();
+    this.input = input;
     this.platforms = new PlatformManager(this.worldWidth);
     this._lastPlatformType = 'solid';
 

@@ -170,9 +170,10 @@ export class Game {
     // Update platforms
     this.platforms.update(dt, this.cameraY, this.worldHeight);
 
-    // Camera follows ball
+    // Camera follows ball — smoothly tracks both up and down
     const targetCameraY = this.ball.y - this.worldHeight * 0.4;
-    this.cameraY = Math.max(this.cameraY, targetCameraY);
+    // Smooth lerp so camera isn't jerky
+    this.cameraY += (targetCameraY - this.cameraY) * Math.min(1, dt * 8);
 
     // Ceiling chase
     this.ceilingY += this.ceilingSpeed * dt;

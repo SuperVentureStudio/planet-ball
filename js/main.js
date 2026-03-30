@@ -33,9 +33,10 @@ function checkOrientation() {
 window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
 
 let game = null;
-let state = 'menu'; // 'menu' | 'playing' | 'dead'
+let state = 'menu'; // 'menu' | 'requesting_tilt' | 'playing' | 'dead' | 'won'
 let highScore = parseInt(localStorage.getItem('planetball_highscore') || '0');
 let highDepth = parseInt(localStorage.getItem('planetball_highdepth') || '0');
+let tiltRequested = false;
 
 function newGame() {
   game = new Game(canvas, input, audio);
@@ -43,18 +44,40 @@ function newGame() {
   state = 'playing';
 }
 
-function handleTap() {
+async function handleTap() {
   if (state === 'menu') {
     audio.init();
-    input.requestTiltPermission();
+
+    // On mobile, request tilt permission first (needs user gesture)
+    if (!tiltRequested && 'ontouchstart' in window) {
+      tiltRequested = true;
+      state = 'requesting_tilt';
+
+      try {
+        await input.requestTiltPermission();
+      } catch (e) {
+        // Tilt not available — touch-drag will work as fallback
+      }
+
+      // Start game after permission resolved
+      newGame();
+      return;
+    }
+
+    // Desktop or tilt already requested
     newGame();
   } else if (state === 'dead' || state === 'won') {
     state = 'menu';
   }
 }
 
-window.addEventListener('touchstart', (e) => { e.preventDefault(); handleTap(); }, { passive: false });
-window.addEventListener('click', handleTap);
+// Use click for iOS permission compatibility (touchstart preventDefault kills click)
+// Don't preventDefault on touchstart in main — let click fire through
+canvas.addEventListener('click', (e) => {
+  e.preventDefault();
+  handleTap();
+});
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') handleTap();
 });
@@ -62,6 +85,26 @@ window.addEventListener('keydown', (e) => {
 let screens = null;
 
 function tick() {
+  if (state === 'requesting_tilt') {
+    // Show "requesting permission" state
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    const worldWidth = 400;
+    const scale = canvas.width / worldWidth;
+    const worldHeight = canvas.height / scale;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.fillStyle = '#2a2a3a';
+    ctx.fillRect(0, 0, worldWidth, worldHeight);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Allow motion access...', worldWidth / 2, worldHeight / 2);
+    ctx.textAlign = 'left';
+    requestAnimationFrame(tick);
+    return;
+  }
+
   const dpr = window.devicePixelRatio || 1;
   canvas.width = window.innerWidth * dpr;
   canvas.height = window.innerHeight * dpr;
@@ -75,7 +118,6 @@ function tick() {
   if (state === 'menu') {
     screens.renderStart(highDepth);
   } else if (state === 'playing' && game) {
-    // Check if game ended
     if (game.state === 'dead' || game.state === 'won') {
       state = game.state;
       const score = game.combo.getTotalScore();

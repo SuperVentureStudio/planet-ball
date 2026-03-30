@@ -95,14 +95,15 @@ export class Input {
   }
 
   _initTouch() {
+    // Don't preventDefault on touchstart — iOS needs click events to fire
+    // for DeviceOrientationEvent.requestPermission() to work
     window.addEventListener('touchstart', (e) => {
       this.tapped = true;
       const touch = e.touches[0];
       this._touchStartX = touch.clientX;
       this._touchCurrentX = touch.clientX;
       this._isTouching = true;
-      e.preventDefault();
-    }, { passive: false });
+    }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
       if (this._isTouching) {

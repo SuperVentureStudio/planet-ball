@@ -3,6 +3,7 @@ import { getGravity, depthToMeters, BOUNCE_VELOCITY, findLandingPlatform } from 
 import { PlatformManager } from './platforms.js';
 import { getLayerAtDepth } from './layers.js';
 import { ComboTracker } from './combo.js';
+import { Renderer } from './renderer.js';
 
 export class Game {
   constructor(canvas, input) {
@@ -28,6 +29,7 @@ export class Game {
     this.hurryUpTimer = 0;
     this.depthReached = 0;
     this.combo = new ComboTracker();
+    this.renderer = new Renderer(this.ctx, this.worldWidth);
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -136,108 +138,16 @@ export class Game {
   }
 
   render() {
-    const { ctx, scale, ball, cameraY } = this;
+    const { ctx, scale, renderer, ball, cameraY, worldWidth, worldHeight } = this;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
     const depthM = depthToMeters(ball.y);
     const layer = getLayerAtDepth(depthM);
 
-    // Background
-    ctx.fillStyle = layer.bgColor;
-    ctx.fillRect(0, 0, this.worldWidth, this.worldHeight);
-
-    // Draw platforms
-    const platforms = this.platforms.getPlatforms();
-    for (const p of platforms) {
-      const py = p.y - this.cameraY;
-      if (py < -20 || py > this.worldHeight + 20) continue;
-
-      let color = layer.platformColor;
-      if (p.type === 'crumbly' && p.crumbleTimer > 0) {
-        color = p.crumbleTimer % 0.2 > 0.1 ? '#ff4444' : layer.platformColor;
-      } else if (p.type === 'slippery') {
-        color = '#6688bb';
-      } else if (p.type === 'steam') {
-        color = '#cc5522';
-      } else if (p.type === 'moving') {
-        color = '#ddaa33';
-      }
-
-      ctx.fillStyle = color;
-      ctx.fillRect(p.x, py, p.width, p.height);
-
-      ctx.fillStyle = layer.platformTopColor;
-      ctx.fillRect(p.x, py, p.width, 2);
-    }
-
-    // Draw ceiling (death zone)
-    const ceilScreenY = this.ceilingY - this.cameraY;
-    if (ceilScreenY > -10) {
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, this.worldWidth, Math.max(0, ceilScreenY));
-
-      ctx.fillStyle = '#ff0000';
-      ctx.fillRect(0, ceilScreenY - 2, this.worldWidth, 4);
-    }
-
-    // Draw ball
-    const screenX = ball.x;
-    const screenY = ball.y - cameraY;
-
-    ctx.save();
-    ctx.translate(screenX, screenY);
-    ctx.rotate(ball.rotation);
-    ctx.scale(ball.scaleX, ball.scaleY);
-
-    ctx.fillStyle = '#2563eb';
-    ctx.beginPath();
-    ctx.arc(0, 0, ball.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#22c55e';
-    ctx.beginPath();
-    ctx.arc(-3, -2, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(4, 4, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-
-    // Depth HUD
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '14px monospace';
-    ctx.fillText(`${Math.floor(depthM)}m`, 10, 20);
-
-    // Layer name
-    ctx.fillStyle = '#ffffff88';
-    ctx.font = '11px monospace';
-    ctx.fillText(layer.name, 10, 38);
-
-    // Score
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '14px monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(`Score: ${this.combo.getTotalScore()}`, this.worldWidth - 10, 20);
-    ctx.textAlign = 'left';
-
-    // Combo display
-    if (this.combo.comboDisplayTimer > 0) {
-      const alpha = Math.min(this.combo.comboDisplayTimer, 1);
-      ctx.fillStyle = `rgba(255, 220, 50, ${alpha})`;
-      ctx.font = 'bold 24px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(this.combo.lastComboText, this.worldWidth / 2, this.worldHeight * 0.3);
-      ctx.textAlign = 'left';
-    }
-
-    // Hurry up warning
-    if (this.hurryUpTimer > 0) {
-      ctx.fillStyle = `rgba(255, 50, 50, ${Math.min(this.hurryUpTimer, 1)})`;
-      ctx.font = 'bold 28px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('HURRY UP!', this.worldWidth / 2, this.worldHeight / 2 - 40);
-      ctx.textAlign = 'left';
-    }
+    renderer.drawBackground(cameraY, worldHeight);
+    renderer.drawPlatforms(this.platforms.getPlatforms(), cameraY, worldHeight, depthM);
+    renderer.drawCeiling(this.ceilingY, cameraY, worldWidth);
+    renderer.drawBall(ball, cameraY);
+    renderer.drawHUD(depthM, layer.name, this.combo.getTotalScore(), this.combo, this.hurryUpTimer, worldWidth, worldHeight);
   }
 }

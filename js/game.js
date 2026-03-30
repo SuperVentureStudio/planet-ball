@@ -4,6 +4,7 @@ import { PlatformManager } from './platforms.js';
 import { getLayerAtDepth } from './layers.js';
 import { ComboTracker } from './combo.js';
 import { Renderer } from './renderer.js';
+import { ParticleSystem, PARTICLE_CONFIGS } from './particles.js';
 
 export class Game {
   constructor(canvas, input) {
@@ -30,6 +31,7 @@ export class Game {
     this.depthReached = 0;
     this.combo = new ComboTracker();
     this.renderer = new Renderer(this.ctx, this.worldWidth);
+    this.particles = new ParticleSystem();
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -98,6 +100,21 @@ export class Game {
       // Track combo
       const avgGap = (layer.platformGap.min + layer.platformGap.max) / 2;
       this.combo.onLand(landed.y, avgGap);
+
+      // Landing particles based on layer
+      const pDepth = depthM;
+      let pConfig;
+      if (pDepth < 100) pConfig = PARTICLE_CONFIGS.dust;
+      else if (pDepth < 500) pConfig = PARTICLE_CONFIGS.dust;
+      else if (pDepth < 1000) pConfig = PARTICLE_CONFIGS.waterDrip;
+      else if (pDepth < 2000) pConfig = PARTICLE_CONFIGS.magmaSpark;
+      else pConfig = PARTICLE_CONFIGS.metalGlow;
+
+      this.particles.emit(this.ball.x, landed.y, 6, pConfig);
+
+      if (landed.type === 'steam') {
+        this.particles.emit(this.ball.x, landed.y, 8, PARTICLE_CONFIGS.steam);
+      }
     }
 
     // Update platforms
@@ -125,6 +142,7 @@ export class Game {
     const currentDepth = depthToMeters(this.ball.y);
     this.depthReached = Math.max(this.depthReached, currentDepth);
     this.combo.update(dt, currentDepth);
+    this.particles.update(dt);
 
     // Death: ceiling catches ball
     if (this.ball.y - this.ball.radius < this.ceilingY) {
@@ -148,6 +166,7 @@ export class Game {
     renderer.drawPlatforms(this.platforms.getPlatforms(), cameraY, worldHeight, depthM);
     renderer.drawCeiling(this.ceilingY, cameraY, worldWidth);
     renderer.drawBall(ball, cameraY);
+    this.particles.render(ctx, cameraY);
     renderer.drawHUD(depthM, layer.name, this.combo.getTotalScore(), this.combo, this.hurryUpTimer, worldWidth, worldHeight);
   }
 }

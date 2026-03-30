@@ -1,6 +1,8 @@
 import { Ball } from './ball.js';
-import { getGravity, depthToMeters, BOUNCE_VELOCITY } from './physics.js';
+import { getGravity, depthToMeters, BOUNCE_VELOCITY, findLandingPlatform } from './physics.js';
 import { Input } from './input.js';
+import { PlatformManager } from './platforms.js';
+import { getLayerAtDepth } from './layers.js';
 
 export class Game {
   constructor(canvas) {
@@ -12,13 +14,13 @@ export class Game {
     this.worldWidth = 400;
     this.worldHeight = 700;
 
-    // Camera offset (world Y of the top of the screen)
     this.cameraY = 0;
-
-    // Ball starts near top
     this.ball = new Ball(this.worldWidth / 2, 50);
-
     this.input = new Input();
+    this.platforms = new PlatformManager(this.worldWidth);
+    this._lastPlatformType = 'solid';
+
+    this.state = 'playing';
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -49,20 +51,46 @@ export class Game {
   }
 
   update(dt) {
-    const depthM = depthToMeters(this.ball.y);
-    const gravity = getGravity(depthM);
+    if (this.state !== 'playing') return;
 
-    // Apply tilt/keyboard input as horizontal acceleration
+    const depthM = depthToMeters(this.ball.y);
+    const layer = getLayerAtDepth(depthM);
+    const gravity = layer.gravity;
+
+    // Input
     const horizontal = this.input.getHorizontal();
-    const moveAccel = 1500; // px/s^2
+    const moveAccel = 1500;
     this.ball.vx += horizontal * moveAccel * dt;
 
-    // Horizontal friction (air drag)
-    this.ball.vx *= Math.pow(0.95, dt * 60);
+    // Horizontal friction — reduced on slippery platforms
+    let friction = 0.95;
+    if (this.ball.onPlatform && this._lastPlatformType === 'slippery') {
+      friction = 0.995;
+    }
+    this.ball.vx *= Math.pow(friction, dt * 60);
 
     this.ball.update(dt, gravity, this.worldWidth);
 
-    // Camera follows ball (ball stays in upper 40% of screen)
+    // Platform collision
+    const landed = findLandingPlatform(this.ball, this.platforms.getPlatforms(), dt);
+    if (landed) {
+      this.ball.land(landed.y);
+      landed.onLand();
+      this._lastPlatformType = landed.type;
+
+      // Steam vent: apply lateral force
+      if (landed.type === 'steam') {
+        this.ball.vx += landed.steamForce;
+      }
+
+      // Auto-bounce after landing
+      this.ball.bounce(BOUNCE_VELOCITY);
+    }
+
+    // Update platforms
+    this.platforms.update(dt, this.cameraY, this.worldHeight);
+
+    // Camera follows ball
     const targetCameraY = this.ball.y - this.worldHeight * 0.4;
     this.cameraY = Math.max(this.cameraY, targetCameraY);
   }
@@ -71,11 +99,38 @@ export class Game {
     const { ctx, scale, ball, cameraY } = this;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
+    const depthM = depthToMeters(ball.y);
+    const layer = getLayerAtDepth(depthM);
+
     // Background
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = layer.bgColor;
     ctx.fillRect(0, 0, this.worldWidth, this.worldHeight);
 
-    // Draw ball (translated by camera)
+    // Draw platforms
+    const platforms = this.platforms.getPlatforms();
+    for (const p of platforms) {
+      const py = p.y - this.cameraY;
+      if (py < -20 || py > this.worldHeight + 20) continue;
+
+      let color = layer.platformColor;
+      if (p.type === 'crumbly' && p.crumbleTimer > 0) {
+        color = p.crumbleTimer % 0.2 > 0.1 ? '#ff4444' : layer.platformColor;
+      } else if (p.type === 'slippery') {
+        color = '#6688bb';
+      } else if (p.type === 'steam') {
+        color = '#cc5522';
+      } else if (p.type === 'moving') {
+        color = '#ddaa33';
+      }
+
+      ctx.fillStyle = color;
+      ctx.fillRect(p.x, py, p.width, p.height);
+
+      ctx.fillStyle = layer.platformTopColor;
+      ctx.fillRect(p.x, py, p.width, 2);
+    }
+
+    // Draw ball
     const screenX = ball.x;
     const screenY = ball.y - cameraY;
 
@@ -84,13 +139,11 @@ export class Game {
     ctx.rotate(ball.rotation);
     ctx.scale(ball.scaleX, ball.scaleY);
 
-    // Planet ball — blue with green landmass
     ctx.fillStyle = '#2563eb';
     ctx.beginPath();
     ctx.arc(0, 0, ball.radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Simple continent detail
     ctx.fillStyle = '#22c55e';
     ctx.beginPath();
     ctx.arc(-3, -2, 5, 0, Math.PI * 2);
@@ -102,9 +155,13 @@ export class Game {
     ctx.restore();
 
     // Depth HUD
-    const depthM = depthToMeters(ball.y);
     ctx.fillStyle = '#ffffff';
     ctx.font = '14px monospace';
     ctx.fillText(`${Math.floor(depthM)}m`, 10, 20);
+
+    // Layer name
+    ctx.fillStyle = '#ffffff88';
+    ctx.font = '11px monospace';
+    ctx.fillText(layer.name, 10, 38);
   }
 }

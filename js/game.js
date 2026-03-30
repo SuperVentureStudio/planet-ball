@@ -5,9 +5,10 @@ import { getLayerAtDepth } from './layers.js';
 import { ComboTracker } from './combo.js';
 import { Renderer } from './renderer.js';
 import { ParticleSystem, PARTICLE_CONFIGS } from './particles.js';
+import { Audio as GameAudio } from './audio.js';
 
 export class Game {
-  constructor(canvas, input) {
+  constructor(canvas, input, audio) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.lastTime = 0;
@@ -32,6 +33,7 @@ export class Game {
     this.combo = new ComboTracker();
     this.renderer = new Renderer(this.ctx, this.worldWidth);
     this.particles = new ParticleSystem();
+    this.audio = audio;
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -97,9 +99,23 @@ export class Game {
       // Auto-bounce after landing
       this.ball.bounce(BOUNCE_VELOCITY);
 
+      const depthFactor = Math.min(depthM / 3000, 1);
+      this.audio.playBounce(depthFactor);
+
+      if (landed.type === 'crumbly') {
+        this.audio.playCrumble();
+      }
+      if (landed.type === 'steam') {
+        this.audio.playSteam();
+      }
+
       // Track combo
       const avgGap = (layer.platformGap.min + layer.platformGap.max) / 2;
       this.combo.onLand(landed.y, avgGap);
+
+      if (this.combo.comboCount > 0) {
+        this.audio.playCombo(this.combo.comboCount);
+      }
 
       // Landing particles based on layer
       const pDepth = depthM;
@@ -147,11 +163,13 @@ export class Game {
     // Death: ceiling catches ball
     if (this.ball.y - this.ball.radius < this.ceilingY) {
       this.state = 'dead';
+      this.audio.playDeath();
     }
 
     // Death: ball falls off bottom of screen
     if (this.ball.y - this.cameraY > this.worldHeight + 100) {
       this.state = 'dead';
+      this.audio.playDeath();
     }
   }
 

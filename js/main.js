@@ -1,12 +1,14 @@
 import { Game } from './game.js';
 import { Screens } from './screens.js';
 import { Input } from './input.js';
+import { Audio as GameAudio } from './audio.js';
 import { getLayerAtDepth } from './layers.js';
 import { depthToMeters } from './physics.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const input = new Input();
+const audio = new GameAudio();
 
 let game = null;
 let state = 'menu'; // 'menu' | 'playing' | 'dead'
@@ -14,13 +16,14 @@ let highScore = parseInt(localStorage.getItem('planetball_highscore') || '0');
 let highDepth = parseInt(localStorage.getItem('planetball_highdepth') || '0');
 
 function newGame() {
-  game = new Game(canvas, input);
+  game = new Game(canvas, input, audio);
   game.start();
   state = 'playing';
 }
 
 function handleTap() {
   if (state === 'menu') {
+    audio.init();
     input.requestTiltPermission();
     newGame();
   } else if (state === 'dead') {

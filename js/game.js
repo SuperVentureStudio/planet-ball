@@ -3,6 +3,7 @@ import { getGravity, depthToMeters, BOUNCE_VELOCITY, findLandingPlatform } from 
 import { Input } from './input.js';
 import { PlatformManager } from './platforms.js';
 import { getLayerAtDepth } from './layers.js';
+import { ComboTracker } from './combo.js';
 
 export class Game {
   constructor(canvas) {
@@ -27,6 +28,7 @@ export class Game {
     this.ceilingSpeedTimer = 0;
     this.hurryUpTimer = 0;
     this.depthReached = 0;
+    this.combo = new ComboTracker();
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -91,6 +93,10 @@ export class Game {
 
       // Auto-bounce after landing
       this.ball.bounce(BOUNCE_VELOCITY);
+
+      // Track combo
+      const avgGap = (layer.platformGap.min + layer.platformGap.max) / 2;
+      this.combo.onLand(landed.y, avgGap);
     }
 
     // Update platforms
@@ -117,6 +123,7 @@ export class Game {
     // Track max depth
     const currentDepth = depthToMeters(this.ball.y);
     this.depthReached = Math.max(this.depthReached, currentDepth);
+    this.combo.update(dt, currentDepth);
 
     // Death: ceiling catches ball
     if (this.ball.y - this.ball.radius < this.ceilingY) {
@@ -207,6 +214,23 @@ export class Game {
     ctx.fillStyle = '#ffffff88';
     ctx.font = '11px monospace';
     ctx.fillText(layer.name, 10, 38);
+
+    // Score
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Score: ${this.combo.getTotalScore()}`, this.worldWidth - 10, 20);
+    ctx.textAlign = 'left';
+
+    // Combo display
+    if (this.combo.comboDisplayTimer > 0) {
+      const alpha = Math.min(this.combo.comboDisplayTimer, 1);
+      ctx.fillStyle = `rgba(255, 220, 50, ${alpha})`;
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.combo.lastComboText, this.worldWidth / 2, this.worldHeight * 0.3);
+      ctx.textAlign = 'left';
+    }
 
     // Hurry up warning
     if (this.hurryUpTimer > 0) {

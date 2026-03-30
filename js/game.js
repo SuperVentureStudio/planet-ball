@@ -22,6 +22,7 @@ export class Game {
     this.input = input;
     this.platforms = new PlatformManager(this.worldWidth);
     this._lastPlatformType = 'solid';
+    this._lastBouncedPlatform = null; // track to prevent re-landing on same platform
 
     this.state = 'playing';
 
@@ -84,12 +85,17 @@ export class Game {
 
     this.ball.update(dt, gravity, this.worldWidth);
 
-    // Platform collision
-    const landed = findLandingPlatform(this.ball, this.platforms.getPlatforms(), dt);
+    // Platform collision — skip the platform we just bounced from
+    const allPlatforms = this.platforms.getPlatforms();
+    const candidates = this._lastBouncedPlatform
+      ? allPlatforms.filter(p => p !== this._lastBouncedPlatform)
+      : allPlatforms;
+    const landed = findLandingPlatform(this.ball, candidates, dt);
     if (landed) {
       this.ball.land(landed.y);
       landed.onLand();
       this._lastPlatformType = landed.type;
+      this._lastBouncedPlatform = landed;
 
       // Steam vent: apply lateral force
       if (landed.type === 'steam') {

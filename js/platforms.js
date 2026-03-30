@@ -60,7 +60,10 @@ export class PlatformManager {
   }
 
   _generateStartingFloor() {
-    this.platforms.push(new Platform(0, 80, this.worldWidth, 'solid'));
+    // Narrow starting platform so ball can fall off the edges
+    const width = 160;
+    const x = (this.worldWidth - width) / 2;
+    this.platforms.push(new Platform(x, 80, width, 'solid'));
     this.lastPlatformY = 80;
   }
 

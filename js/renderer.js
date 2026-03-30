@@ -47,6 +47,16 @@ export class Renderer {
       ctx.fillStyle = '#555566';
       ctx.fillRect(0, 0, 8, worldHeight);
       ctx.fillRect(this.worldWidth - 8, 0, 8, worldHeight);
+
+      // Water drips on side walls
+      ctx.fillStyle = '#4488cc44';
+      for (let i = 0; i < 8; i++) {
+        const hash = ((Math.floor(cameraY * 0.1) + i) * 2654435761) >>> 0;
+        const x = (hash % 2 === 0) ? 2 : this.worldWidth - 6;
+        const baseY = (hash >> 4) % 300;
+        const y = baseY - (cameraY * 0.5 % 300);
+        ctx.fillRect(x, y, 4, 8 + (hash >> 12) % 12);
+      }
     }
 
     if (depthM >= 50 && depthM < 500) {
@@ -55,6 +65,13 @@ export class Renderer {
 
     if (depthM >= 400 && depthM < 1000) {
       this._drawParallaxDots(cameraY, worldHeight, 0.15, '#5577aa44', 4);
+
+      // Underground water streams in background
+      ctx.fillStyle = '#3366aa22';
+      const streamY1 = 200 - (cameraY * 0.08 % 400);
+      const streamY2 = 500 - (cameraY * 0.08 % 400);
+      ctx.fillRect(0, streamY1, this.worldWidth, 20);
+      ctx.fillRect(20, streamY2, this.worldWidth - 40, 15);
     }
 
     if (depthM >= 900 && depthM < 2000) {
@@ -117,6 +134,12 @@ export class Renderer {
         const dir = p.steamForce > 0 ? 1 : -1;
         const ax = dir > 0 ? p.x + p.width + 2 : p.x - 8;
         ctx.fillRect(ax, py + 2, 6, 6);
+      }
+
+      // Water pool shimmer on slippery platforms
+      if (p.type === 'slippery') {
+        ctx.fillStyle = '#4488cc33';
+        ctx.fillRect(p.x + 2, py + 2, p.width - 4, p.height - 2);
       }
     }
   }

@@ -23,6 +23,8 @@ export class Game {
     this.platforms = new PlatformManager(this.worldWidth);
     this._lastPlatformType = 'solid';
     this._lastBouncedPlatform = null; // track to prevent re-landing on same platform
+    this._platformsSkipped = 0; // count platforms passed without landing
+    this._maxSkip = 5; // die if you skip more than this many
 
     this.state = 'playing';
 
@@ -69,7 +71,7 @@ export class Game {
 
     const depthM = depthToMeters(this.ball.y);
     const layer = getLayerAtDepth(depthM);
-    const gravity = layer.gravity;
+    const gravity = getGravity(depthM); // smooth ramp 600→1800 based on depth
 
     // Input
     const horizontal = this.input.getHorizontal();
@@ -90,8 +92,34 @@ export class Game {
     const candidates = this._lastBouncedPlatform
       ? allPlatforms.filter(p => p !== this._lastBouncedPlatform)
       : allPlatforms;
+
+    // Count platforms the ball passes through (falling past without landing)
+    if (this.ball.vy > 0) {
+      const ballBottom = this.ball.y + this.ball.radius;
+      for (const p of candidates) {
+        if (!p.alive) continue;
+        if (!p._counted && p.y < ballBottom && p.y > ballBottom - this.ball.vy * dt) {
+          // Ball fell past this platform's Y level
+          const overlaps = this.ball.x + this.ball.radius > p.x &&
+                          this.ball.x - this.ball.radius < p.x + p.width;
+          if (!overlaps) {
+            p._counted = true;
+            this._platformsSkipped++;
+          }
+        }
+      }
+    }
+
+    // Death: skipped too many platforms
+    if (this._platformsSkipped > this._maxSkip) {
+      this.state = 'dead';
+      this.audio.playDeath();
+      return;
+    }
+
     const landed = findLandingPlatform(this.ball, candidates, dt);
     if (landed) {
+      this._platformsSkipped = 0; // reset skip counter on landing
       this.ball.land(landed.y);
       landed.onLand();
       this._lastPlatformType = landed.type;
@@ -166,6 +194,12 @@ export class Game {
     this.combo.update(dt, currentDepth);
     this.particles.update(dt);
 
+    // Win: reached Earth's center (6371m)
+    if (currentDepth >= 6371) {
+      this.state = 'won';
+      return;
+    }
+
     // Death: ceiling catches ball
     if (this.ball.y - this.ball.radius < this.ceilingY) {
       this.state = 'dead';
@@ -191,6 +225,6 @@ export class Game {
     renderer.drawCeiling(this.ceilingY, cameraY, worldWidth);
     renderer.drawBall(ball, cameraY);
     this.particles.render(ctx, cameraY);
-    renderer.drawHUD(depthM, layer.name, this.combo.getTotalScore(), this.combo, this.hurryUpTimer, worldWidth, worldHeight);
+    renderer.drawHUD(depthM, layer.name, this.combo.getTotalScore(), this.combo, this.hurryUpTimer, worldWidth, worldHeight, this._platformsSkipped, this._maxSkip);
   }
 }

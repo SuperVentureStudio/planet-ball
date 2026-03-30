@@ -106,4 +106,39 @@ export class Screens {
 
     ctx.textAlign = 'left';
   }
+
+  renderWin(depthReached, totalScore, highScore) {
+    const { ctx, w, h } = this;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, w, h);
+
+    const cx = w / 2;
+
+    ctx.fillStyle = '#ffdd55';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('YOU REACHED', cx, h * 0.22);
+    ctx.fillText("EARTH'S CORE!", cx, h * 0.28);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px monospace';
+    ctx.fillText('6,371m deep', cx, h * 0.38);
+
+    ctx.fillStyle = '#55ff55';
+    ctx.font = 'bold 24px monospace';
+    ctx.fillText(`Score: ${totalScore}`, cx, h * 0.50);
+
+    if (totalScore >= highScore) {
+      ctx.fillStyle = '#ffdd55';
+      ctx.font = '14px monospace';
+      ctx.fillText('NEW HIGH SCORE!', cx, h * 0.58);
+    }
+
+    ctx.fillStyle = '#ffffff88';
+    ctx.font = '14px monospace';
+    ctx.fillText('Tap to play again', cx, h * 0.75);
+
+    ctx.textAlign = 'left';
+  }
 }

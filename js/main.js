@@ -48,7 +48,7 @@ function handleTap() {
     audio.init();
     input.requestTiltPermission();
     newGame();
-  } else if (state === 'dead') {
+  } else if (state === 'dead' || state === 'won') {
     state = 'menu';
   }
 }
@@ -76,8 +76,8 @@ function tick() {
     screens.renderStart(highDepth);
   } else if (state === 'playing' && game) {
     // Check if game ended
-    if (game.state === 'dead') {
-      state = 'dead';
+    if (game.state === 'dead' || game.state === 'won') {
+      state = game.state;
       const score = game.combo.getTotalScore();
       const depth = Math.floor(game.depthReached);
       if (score > highScore) {
@@ -89,10 +89,14 @@ function tick() {
         localStorage.setItem('planetball_highdepth', String(highDepth));
       }
     }
-  } else if (state === 'dead' && game) {
+  } else if ((state === 'dead' || state === 'won') && game) {
     game.render();
     const layerName = getLayerAtDepth(game.depthReached).name;
-    screens.renderGameOver(game.depthReached, layerName, game.combo.getTotalScore(), highScore);
+    if (state === 'won') {
+      screens.renderWin(game.depthReached, game.combo.getTotalScore(), highScore);
+    } else {
+      screens.renderGameOver(game.depthReached, layerName, game.combo.getTotalScore(), highScore);
+    }
   }
 
   requestAnimationFrame(tick);

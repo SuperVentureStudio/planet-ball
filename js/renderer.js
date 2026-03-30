@@ -194,7 +194,7 @@ export class Renderer {
     }
   }
 
-  drawHUD(depthM, layerName, score, combo, hurryUpTimer, worldWidth, worldHeight) {
+  drawHUD(depthM, layerName, score, combo, hurryUpTimer, worldWidth, worldHeight, platformsSkipped, maxSkip) {
     const { ctx } = this;
 
     ctx.fillStyle = '#ffffff';
@@ -226,6 +226,18 @@ export class Renderer {
       ctx.font = 'bold 28px monospace';
       ctx.textAlign = 'center';
       ctx.fillText('HURRY UP!', worldWidth / 2, worldHeight / 2 - 40);
+      ctx.textAlign = 'left';
+    }
+
+    // Skip warning — shows when player is missing platforms
+    if (platformsSkipped > 0) {
+      const danger = platformsSkipped / maxSkip;
+      const r = Math.floor(255 * danger);
+      const g = Math.floor(255 * (1 - danger));
+      ctx.fillStyle = `rgb(${r}, ${g}, 0)`;
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`MISS ${platformsSkipped}/${maxSkip}`, worldWidth / 2, worldHeight - 20);
       ctx.textAlign = 'left';
     }
   }
